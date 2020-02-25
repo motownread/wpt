@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Set/Release capture + relatedTarget</title>
+        <meta name="viewport" content="width=device-width">
+        <script src="/resources/testharness.js"></script>
+        <script src="/resources/testharnessreport.js"></script>
+        <script src="/resources/testdriver.js"></script>
+        <script src="/resources/testdriver-actions.js"></script>
+        <script src="/resources/testdriver-vendor.js"></script>
+
+        <style>
+            .container {
+               height: 500px;
+               width: 500px;
+               border: 1px solid black;
+               overflow: hidden;
+               position: relative;
+            }
+
+            #box {
+               height: 50px;
+               width: 50px;
+               background: red;
+               position: absolute;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Pointer Events Capture Test - capture should not be lost early</h1>
+        <h4>
+            Test Description: This test checks if setCapture/pointerup functions
+            works properly. Complete the following actions:
+            <ol>
+                <li> Put your mouse over the red box
+                <li> Press and hold left mouse button. Box will call setPointerCapture
+                <li> Press right button and release
+                <li> Pointer capture should not be lost
+                <li> Press right button again and release
+                <li> Pointer capture should not be lost
+                <li> Release left mouse button. lostpointercapture is called
+            </ol>
+        </h4>
+        Test passes if the proper behavior of the events is observed.
+        <div class="container">
+           <div id="box"></div>
+        </div>
+    </body>
+    <script>
+      var event_log = [];
+      function log(message){
+        event_log.push(message);
+      }
+
+      async_test(function(t){
+         var box = document.getElementById("box");
+
+         box.addEventListener('pointerdown', function(e) {
+           log('pointerdown ' + e.pointerId + " " + e.pointerType +
+              " buttons: " + e.buttons + " button: " + e.button);
+           box.setPointerCapture(e.pointerId);
+         });
+
+         box.addEventListener('pointerup', function(e) {
+           log('pointerup ' + e.pointerId + " buttons: " +
+              e.buttons + " button: " + e.button);
+         });
+
+         box.addEventListener('lostpointercapture', function(e) {
+           t.step(function(){
+             log('lost pointer capture ' + e.pointerId +
+                ' buttons:' + e.buttons + " button: " + e.button);
+             log('does element still have capture ? ' +
+                box.hasPointerCapture(e.PointerId));
+             assert_true(e.buttons === 0,
+              'lostpointercapture should happen when Left button is released.');
+           });
+           t.done();
+         });
+
+         box.addEventListener('pointercancel', function(e){
+            log('pointercancel ' + e.pointerId + ' buttons:' +
+               e.buttons + " button: " + e.button);
+         });
+
+        box.addEventListener('pointermove', function(e){
+            log('pointermove ' + e.pointerId + ' buttons:' +
+               e.buttons + " button: " + e.button);
+         });
+
+         box.addEventListener('contextmenu', function(e) {
+           e.preventDefault();
+         });
+
+         box.addEventListener('mousedown', function(e){
+           log("mousedown " + "buttons: " + e.buttons +
+              " button: " + e.button);
+         });
+
+         box.addEventListener('mouseup', function(e){
+           log("mouseup " + "buttons: " + e.buttons +
+              " button: " + e.button);
+         });
+
+         box.addEventListener('click', function(e){
+           log("click " + "buttons: " + e.buttons +
+              " button: " + e.button);
+         });
+
+         box.addEventListener('auxclick', function(e){
+           log("auxclick " + "buttons: " + e.buttons +
+              " button: " + e.button);
+         });
+
+         var actions = new test_driver.Actions();
+         var actions_promise = actions
+                    .pointerMove(0, 0, {origin: box})
+
+                    .pointerDown({button: actions.ButtonType.LEFT})
+
+                    .pointerDown({button: actions.ButtonType.RIGHT})
+                    .pointerUp({button: actions.ButtonType.RIGHT})
+
+                    // crbug.com/1053385 bug is reproduced here at the second
+                    // mouse down on the RIGHT button.
+                    .pointerDown({button: actions.ButtonType.RIGHT})
+
+                    // this code is for making the test pass when the bug is
+                    // fixed
+                    .pointerUp({button: actions.ButtonType.RIGHT})
+                    .pointerUp({button: actions.ButtonType.LEFT})
+                    .send();
+      }, "Pointer Events Capture Test - capture not lost early");
+
+    </script>
+</html>
