@@ -283,7 +283,7 @@ test(t => {
   assert_equals(anim.effect.target, div, 'The returned element has the correct target element');
   assert_equals(anim.effect.pseudoElement, '::before',
                 'The returned Animation targets the correct selector');
-}, 'animate() with pseudoElement an Animation object targeting ' +
+}, 'animate() with pseudoElement (::before with content) creates an Animation object targeting ' +
    'the correct pseudo-element');
 
 test(t => {
@@ -292,20 +292,8 @@ test(t => {
   assert_equals(anim.effect.target, div, 'The returned element has the correct target element');
   assert_equals(anim.effect.pseudoElement, '::before',
                 'The returned Animation targets the correct selector');
-}, 'animate() with pseudoElement without content creates an Animation object targeting ' +
+}, 'animate() with pseudoElement (::before without content) creates an Animation object targeting ' +
    'the correct pseudo-element');
-
-test(t => {
-  const div = createDiv(t);
-  div.classList.add('pseudo');
-  div.style.display = 'list-item';
-  getComputedStyle(div,"::marker").content; // Sync style
-  const anim = div.animate(null, {pseudoElement: '::marker'});
-  assert_equals(anim.effect.target, div, 'The returned element has the correct target element');
-  assert_equals(anim.effect.pseudoElement, '::marker',
-                'The returned Animation targets the correct selector');
-}, 'animate() with pseudoElement an Animation object targeting ' +
-   'the correct pseudo-element for ::marker');
 
 test(t => {
   const div = createDiv(t);
@@ -315,21 +303,40 @@ test(t => {
   assert_equals(anim.effect.target, div, 'The returned element has the correct target element');
   assert_equals(anim.effect.pseudoElement, '::first-line',
                 'The returned Animation targets the correct selector');
-}, 'animate() with pseudoElement an Animation object targeting ' +
-   'the correct pseudo-element for ::first-line');
+}, 'animate() with pseudoElement (::first-line) an Animation object targeting ' +
+   'the correct pseudo-element');
+
+test(t => {
+  const div = createDiv(t);
+  const anim = div.animate(null, {pseudoElement: '::foo'});
+  assert_equals(anim.effect.target, div, 'The returned element has the correct target element');
+  assert_equals(anim.effect.pseudoElement, '::foo',
+                'The returned Animation targets the correct selector');
+}, 'animate() with unsupported pseudoElement (::foo) creates an Animation object targeting ' +
+   'the correct pseudo-element');
+
+test(t => {
+  const div = createDiv(t);
+  div.classList.add('pseudo');
+  getComputedStyle(div,"::before").content; // Sync style
+  const anim = div.animate(null, {pseudoElement: ':before'});
+  assert_equals(anim.effect.target, div, 'The returned element has the correct target element');
+  assert_equals(anim.effect.pseudoElement, '::before',
+                'The returned Animation targets the correct selector');
+}, 'animate() with legacy pseudoElement (:before) with content creates an Animation object targeting ' +
+   'the corrected pseudo-element (::before)');
 
 for (const pseudo of [
   '',
   'before',
-  '::abc',
-  '::placeholder',
+  ':placeholder',
 ]) {
   test(t => {
     const div = createDiv(t);
     assert_throws_js(TypeError, () => {
       div.animate(null, {pseudoElement: pseudo});
     });
-  }, `animate() with the invalid pseudoElement '${pseudo}' throws a TypeError`);
+  }, `animate() with the syntactically invalid pseudoElement '${pseudo}' throws a TypeError`);
 }
 
 </script>

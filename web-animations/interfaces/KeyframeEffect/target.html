@@ -258,8 +258,7 @@ for (const hasContent of [true, false]){
 for (const pseudo of [
   '',
   'before',
-  '::abc',
-  '::placeholder',
+  ':placeholder',
 ]) {
   test(t => {
     const effect = new KeyframeEffect(null, gKeyFrames, 100 * MS_PER_SEC);
