@@ -72,7 +72,9 @@ function bluetooth_test(func, name, properties) {
       .then(performChromiumSetup)
       .then(() => func(t))
       .then(() => navigator.bluetooth.test.allResponsesConsumed())
-      .then(consumed => assert_true(consumed)), name, properties));
+      .then(consumed =>
+          assert_true(consumed,
+              'All responses need to be consumed.')), name, properties));
 }
 
 // HCI Error Codes. Used for simulateGATT[Dis]ConnectionResponse.
@@ -489,16 +491,20 @@ function simulateGATTDisconnectionAndWait(device, fake_peripheral) {
   ]);
 }
 
-// Simulates a pre-connected device with |address|, |name| and
-// |knownServiceUUIDs|.
-function setUpPreconnectedDevice({
-  address = '00:00:00:00:00:00', name = 'LE Device', knownServiceUUIDs = []}) {
-  return navigator.bluetooth.test.simulateCentral({state: 'powered-on'})
-    .then(fake_central => fake_central.simulatePreconnectedPeripheral({
-      address: address,
-      name: name,
-      knownServiceUUIDs: knownServiceUUIDs,
-    }));
+// Simulates a |fake_central| with a pre-connected device with |address|, |name|
+// and |knownServiceUUIDs|. If |fake_central| is not provided, one will be
+// created in the 'powered-on' state.
+async function setUpPreconnectedDevice(
+    {address = '00:00:00:00:00:00', name = 'LE Device', knownServiceUUIDs = []},
+    fake_central = null) {
+  if (fake_central === null)
+    fake_central =
+        await navigator.bluetooth.test.simulateCentral({state: 'powered-on'});
+  return await fake_central.simulatePreconnectedPeripheral({
+    address: address,
+    name: name,
+    knownServiceUUIDs: knownServiceUUIDs,
+  });
 }
 
 const health_thermometer_ad_packet = {
@@ -548,6 +554,21 @@ function setUpConnectableHealthThermometerDevice() {
       code: HCI_SUCCESS,
     }))
     .then(() => fake_peripheral);
+}
+
+// Returns and object containing a BluetoothDevice discovered using
+// |requestDeviceOptions|, its corresponding FakePeripheral and
+// FakeRemoteGATTServices. The simulated device has the properties |address|,
+// |name|, and the GATT services in |knownServiceUUIDs|. The device has been
+// connected to and its attributes are ready to be discovered.
+async function getDevice(
+    requestDeviceOptions, {address, name, knownServiceUUIDs},
+    fake_central = null) {
+  let result = await getConnectedDevice(
+      requestDeviceOptions, {address, name, knownServiceUUIDs}, fake_central);
+  await result.fake_peripheral.setNextGATTDiscoveryResponse(
+      {code: HCI_SUCCESS});
+  return result;
 }
 
 // Returns an object containing a BluetoothDevice discovered using |options|,
@@ -690,6 +711,23 @@ function populateHealthThermometerFakes(fake_peripheral) {
       fake_temperature_measurement,
       fake_temperature_type,
     }));
+}
+
+// Similar to getDiscoveredDevice() except that the GATT discovery response has
+// not been set yet so more attributes can still be added.
+async function getConnectedDevice(
+    requestDeviceOptions, {address, name, knownServiceUUIDs},
+    fake_central = null) {
+  let result = {};
+  let {device, fake_peripheral} = await getDiscoveredDevice(
+      requestDeviceOptions, {address, name, knownServiceUUIDs}, fake_central);
+  await fake_peripheral.setNextGATTConnectionResponse({code: HCI_SUCCESS});
+  for (const service of knownServiceUUIDs) {
+    let fake_service = await fake_peripheral.addFakeService({uuid: service});
+    result['fake_' + service] = fake_service;
+  }
+  await device.gatt.connect();
+  return Object.assign(result, {device, fake_peripheral})
 }
 
 // Similar to getHealthThermometerDevice except the GATT discovery
@@ -1004,6 +1042,17 @@ function getConnectedHIDDevice(options) {
       uuid: 'human_interface_device',
     }))
     .then(() => ({device, fake_peripheral}));
+}
+
+// Similar to setUpPreconnectedPeripheral() except the device is not connected,
+// thus its services have not been discovered.
+async function getDiscoveredDevice(
+    requestDeviceOptions, {address, name, knownServiceUUIDs},
+    fake_central = null) {
+  let fake_peripheral = await setUpPreconnectedDevice(
+      {address, name, knownServiceUUIDs}, fake_central);
+  let device = await requestDeviceWithTrustedClick(requestDeviceOptions);
+  return {device, fake_peripheral};
 }
 
 // Similar to getHealthThermometerDevice() except the device
