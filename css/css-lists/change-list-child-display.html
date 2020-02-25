@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Lists: test the change of child's display</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="match" href="change-list-child-display-ref.html">
+<link rel="help" href="https://www.w3.org/TR/CSS22/generate.html#lists">
+<meta name="assert" content="Check that an outside marker looks good when the first child
+  of the list item changes from 'display: block' to 'display: inline' or vice versa.">
+<style>
+.inline {
+  display: inline;
+}
+</style>
+<ul>
+  <li><div>1</div></li>
+  <li><div class="inline">2</div></li>
+</ul>
+<script>
+// Force layout
+document.body.offsetLeft;
+
+// Change display
+for (let child of document.querySelectorAll("li > div")) {
+  child.classList.toggle("inline");
+}
+</script>
